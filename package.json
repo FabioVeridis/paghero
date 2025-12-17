@@ -5,9 +5,4 @@
   "stripe": "^12.17.0",
   "airtable": "^0.12.2",
   "@stripe/stripe-js": "^2.27.0"
-},
-  "engines": {
-    "node": "20.x"
-  }
 }
-

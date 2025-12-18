@@ -3,7 +3,6 @@ import Airtable from 'airtable';
 // ===== SERVER SIDE =====
 export async function getServerSideProps({ params, query }) {
   try {
-    // Legge il customerId da URL dinamico o query string
     const customerId = params.customerId || query.nxtPcustomerId;
 
     if (!customerId) {
@@ -12,11 +11,24 @@ export async function getServerSideProps({ params, query }) {
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
 
-    // Fetch ledger items filtrando per linked record (array) e status "open"
+    // ===== DEBUG: fetch senza formula per vedere i valori di Customer =====
+    const allLedgerItems = await base('Ledger Items').select({
+      maxRecords: 20
+    }).firstPage();
+
+    allLedgerItems.forEach(r => {
+      console.log('Ledger item ID:', r.id);
+      console.log('Customer field array:', r.fields.Customer);
+      console.log('ARRAYJOIN Customer:', r.fields.Customer?.join(','));
+      console.log('Status field array:', r.fields.Status);
+      console.log('ARRAYJOIN Status:', r.fields.Status?.join(','));
+    });
+
+    // ===== FETCH filtrando per customerId e status "open" in modo robusto =====
     const ledgerItemsRecords = await base('Ledger Items').select({
       filterByFormula: `AND(
-        FIND('${customerId}', ARRAYJOIN({Customer})) > 0,
-        FIND('open', ARRAYJOIN({Status})) > 0
+        FIND('${customerId}', ARRAYJOIN({Customer}, ",")) > 0,
+        FIND('open', ARRAYJOIN({Status}, ",")) > 0
       )`
     }).firstPage();
 
@@ -25,7 +37,7 @@ export async function getServerSideProps({ params, query }) {
       ...record.fields
     }));
 
-    console.log('Ledger items trovati:', ledgerItems);
+    console.log('Ledger items filtrati trovati:', ledgerItems);
 
     return { props: { ledgerItems } };
   } catch (error) {

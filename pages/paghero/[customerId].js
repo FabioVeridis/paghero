@@ -9,7 +9,7 @@ export async function getServerSideProps({ params }) {
 
     // Fetch ledger items filtrando per il campo corretto "customerId"
     const ledgerItemsRecords = await base('Ledger Items').select({
-      filterByFormula: `{customerId} = '${customerId}'`
+      filterByFormula: `{Customer} = '${customerId}'`
     }).firstPage();
 
     const ledgerItems = ledgerItemsRecords.map(record => ({

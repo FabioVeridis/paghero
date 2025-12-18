@@ -1,14 +1,20 @@
 import Airtable from 'airtable';
 
 // ===== SERVER SIDE =====
-export async function getServerSideProps({ params }) {
+export async function getServerSideProps({ params, query }) {
   try {
-    const customerId = params.customerId;
+    // Legge il customerId da rotta dinamica o query string
+    const customerId = params.customerId || query.nxtPcustomerId;
+
+    if (!customerId) {
+      return { props: { ledgerItems: [] } };
+    }
 
     const base = new Airtable({
       apiKey: process.env.AIRTABLE_KEY
     }).base(process.env.AIRTABLE_BASE);
 
+    // Fetch ledger items filtrando per customerId e status "open"
     const ledgerItemsRecords = await base('Ledger Items').select({
       filterByFormula: `AND(
         {Customer} = '${customerId}',
@@ -21,14 +27,12 @@ export async function getServerSideProps({ params }) {
       ...record.fields
     }));
 
-    return {
-      props: { ledgerItems }
-    };
+    console.log('Ledger items trovati:', ledgerItems);
+
+    return { props: { ledgerItems } };
   } catch (error) {
     console.error('Errore fetch Airtable:', error);
-    return {
-      props: { ledgerItems: [] }
-    };
+    return { props: { ledgerItems: [] } };
   }
 }
 

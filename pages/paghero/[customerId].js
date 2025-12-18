@@ -1,5 +1,6 @@
 import Airtable from 'airtable';
 
+// ===== SERVER SIDE =====
 export async function getServerSideProps({ params, query }) {
   try {
     const customerId = params.customerId || query.nxtPcustomerId;
@@ -16,20 +17,15 @@ export async function getServerSideProps({ params, query }) {
     }).firstPage();
 
     allLedgerItems.forEach(r => {
-      const customerValue = Array.isArray(r.fields.Customer) ? r.fields.Customer.join(',') : r.fields.Customer;
-      const statusValue = r.fields.Status; // già stringa
-
       console.log('Ledger item ID:', r.id);
       console.log('Customer field:', r.fields.Customer);
-      console.log('ARRAYJOIN Customer:', customerValue);
       console.log('Status field:', r.fields.Status);
-      console.log('ARRAYJOIN Status:', statusValue);
     });
 
     // ===== FETCH filtrando per customerId e status "open" =====
     const ledgerItemsRecords = await base('Ledger Items').select({
       filterByFormula: `AND(
-        FIND('${customerId}', ARRAYJOIN({Customer}, ",")) > 0,
+        {Customer} = '${customerId}',
         {Status} = "open"
       )`
     }).firstPage();

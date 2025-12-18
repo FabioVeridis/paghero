@@ -11,30 +11,19 @@ export async function getServerSideProps({ params, query }) {
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
 
-    // ===== DEBUG: fetch senza formula per vedere i valori reali =====
+    // ===== FETCH tutti i ledger items con Status = "open" =====
     const allLedgerItems = await base('Ledger Items').select({
-      maxRecords: 20
+      filterByFormula: `{Status} = "open"`,
+      maxRecords: 100 // puoi aumentare se servono più record
     }).firstPage();
 
-    allLedgerItems.forEach(r => {
-      console.log('Ledger item ID:', r.id);
-      console.log('Customer field (array):', r.fields.Customer);
-      console.log('CustomerIDText:', r.fields.CustomerIDText);
-      console.log('Status field:', r.fields.Status);
-    });
-
-    // ===== FETCH filtrando per customerId e status "open" usando CustomerIDText =====
-    const ledgerItemsRecords = await base('Ledger Items').select({
-      filterByFormula: `AND(
-        FIND('${customerId}', {CustomerIDText}) > 0,
-        {Status} = "open"
-      )`
-    }).firstPage();
-
-    const ledgerItems = ledgerItemsRecords.map(record => ({
-      id: record.id,
-      ...record.fields
-    }));
+    // ===== FILTRO LATO SERVER per customerId =====
+    const ledgerItems = allLedgerItems
+      .filter(item => Array.isArray(item.fields.Customer) && item.fields.Customer.includes(customerId))
+      .map(item => ({
+        id: item.id,
+        ...item.fields
+      }));
 
     console.log('Ledger items filtrati trovati:', ledgerItems);
 

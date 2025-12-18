@@ -11,24 +11,27 @@ export async function getServerSideProps({ params, query }) {
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
 
-    // ===== DEBUG: fetch senza formula per vedere i valori di Customer =====
+    // ===== DEBUG: fetch senza formula per vedere i valori reali =====
     const allLedgerItems = await base('Ledger Items').select({
       maxRecords: 20
     }).firstPage();
 
     allLedgerItems.forEach(r => {
+      const customerValue = Array.isArray(r.fields.Customer) ? r.fields.Customer.join(',') : r.fields.Customer;
+      const statusValue = Array.isArray(r.fields.Status) ? r.fields.Status.join(',') : r.fields.Status;
+
       console.log('Ledger item ID:', r.id);
-      console.log('Customer field array:', r.fields.Customer);
-      console.log('ARRAYJOIN Customer:', r.fields.Customer?.join(','));
-      console.log('Status field array:', r.fields.Status);
-      console.log('ARRAYJOIN Status:', r.fields.Status?.join(','));
+      console.log('Customer field:', r.fields.Customer);
+      console.log('ARRAYJOIN Customer:', customerValue);
+      console.log('Status field:', r.fields.Status);
+      console.log('ARRAYJOIN Status:', statusValue);
     });
 
     // ===== FETCH filtrando per customerId e status "open" in modo robusto =====
     const ledgerItemsRecords = await base('Ledger Items').select({
       filterByFormula: `AND(
         FIND('${customerId}', ARRAYJOIN({Customer}, ",")) > 0,
-        FIND('open', ARRAYJOIN({Status}, ",")) > 0
+        FIND('open', IF(ISARRAY({Status}), ARRAYJOIN({Status}, ","), {Status})) > 0
       )`
     }).firstPage();
 

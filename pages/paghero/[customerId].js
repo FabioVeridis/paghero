@@ -1,64 +1,52 @@
-import { fetchLedger } from '../../lib/airtable';
-import { useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
+import Airtable from 'airtable';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
-
+// Funzione server-side per prendere i ledger items del customer
 export async function getServerSideProps({ params }) {
-  const ledger = await fetchLedger(params.customerId);
-  return { props: { ledger } };
+  try {
+    const customerId = params.customerId;
+
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
+
+    // Fetch ledger items filtrando per il campo corretto "customerId"
+    const ledgerItemsRecords = await base('Ledger Items').select({
+      filterByFormula: `{customerId} = '${customerId}'`
+    }).firstPage();
+
+    const ledgerItems = ledgerItemsRecords.map(record => ({
+      id: record.id,
+      ...record.fields
+    }));
+
+    return {
+      props: { ledgerItems }
+    };
+  } catch (error) {
+    console.error("Errore fetch Airtable:", error);
+    return {
+      props: { ledgerItems: [] } // evita errori 500
+    };
+  }
 }
 
-export default function Paghero({ ledger }) {
-  const [loadingIds, setLoadingIds] = useState([]);
-
-  async function payLineItem(item) {
-    setLoadingIds(prev => [...prev, item.id]);
-    try {
-      const res = await fetch('/api/ledger/pay-item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId: item.id })
-      });
-      const data = await res.json();
-
-      if (data.clientSecret) {
-        const stripe = await stripePromise;
-        const { error } = await stripe.confirmCardPayment(data.clientSecret);
-        if (error) alert('Errore pagamento: ' + error.message);
-        else alert('Pagamento completato!');
-      } else alert(data.error);
-    } catch (err) {
-      alert('Errore: ' + err.message);
-    }
-    setLoadingIds(prev => prev.filter(id => id !== item.id));
-  }
-
+// Componente React per mostrare i ledger items
+export default function Paghero({ ledgerItems }) {
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
-      <h1 className="text-3xl font-bold mb-4">Pagherò digitale</h1>
-
-      <ul className="bg-white shadow rounded p-4">
-        {ledger.items.map(item => (
-          <li key={item.id} className="flex justify-between items-center py-2 border-b last:border-b-0">
-            <div>
-              <div className="font-semibold">{item.merchant}</div>
-              <div className="text-sm text-gray-500">{item.description}</div>
-              <div className="text-sm">€{item.amount} – {item.status}</div>
-            </div>
-            {item.status === 'open' && (
-              <button
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-                onClick={() => payLineItem(item)}
-                disabled={loadingIds.includes(item.id)}
-              >
-                {loadingIds.includes(item.id) ? 'Pagando...' : 'Paga ora'}
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <h1>Pagherò digitale</h1>
+      {ledgerItems.length === 0 ? (
+        <p>Nessun pagamento aperto</p>
+      ) : (
+        ledgerItems.map(item => (
+          <div key={item.id} style={{ border: '1px solid #ccc', padding: '10px', marginBottom: '10px' }}>
+            <p><strong>Merchant:</strong> {item.MerchantName || 'N/A'}</p>
+            <p><strong>Descrizione:</strong> {item.Description || 'N/A'}</p>
+            <p><strong>Importo:</strong> {item.Amount || '0'} €</p>
+            <button style={{ padding: '5px 10px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '5px' }}>
+              Paga ora
+            </button>
+          </div>
+        ))
+      )}
     </div>
   );
 }
-

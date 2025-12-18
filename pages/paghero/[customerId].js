@@ -53,7 +53,7 @@ export default function Paghero({ ledgerItems }) {
               borderRadius: '6px'
             }}
           >
-            <p><strong>Merchant:</strong> {item.MerchantName || 'N/A'}</p>
+            <p><strong>Merchant:</strong> {item.Merchant Name || 'N/A'}</p>
             <p><strong>Descrizione:</strong> {item.Description || 'N/A'}</p>
             <p><strong>Importo:</strong> {item.Amount || '0'} €</p>
 

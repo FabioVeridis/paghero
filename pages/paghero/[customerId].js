@@ -18,14 +18,15 @@ export async function getServerSideProps({ params, query }) {
 
     allLedgerItems.forEach(r => {
       console.log('Ledger item ID:', r.id);
-      console.log('Customer field:', r.fields.Customer);
+      console.log('Customer field (array):', r.fields.Customer);
+      console.log('CustomerIDText:', r.fields.CustomerIDText);
       console.log('Status field:', r.fields.Status);
     });
 
-    // ===== FETCH filtrando per customerId e status "open" =====
+    // ===== FETCH filtrando per customerId e status "open" usando CustomerIDText =====
     const ledgerItemsRecords = await base('Ledger Items').select({
       filterByFormula: `AND(
-        {Customer} = '${customerId}',
+        FIND('${customerId}', {CustomerIDText}) > 0,
         {Status} = "open"
       )`
     }).firstPage();

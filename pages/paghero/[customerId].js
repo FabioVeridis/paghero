@@ -3,7 +3,6 @@ import Airtable from 'airtable';
 // ===== SERVER SIDE =====
 export async function getServerSideProps({ params, query }) {
   try {
-    // Legge il customerId da rotta dinamica o query string
     const customerId = params.customerId || query.nxtPcustomerId;
 
     if (!customerId) {
@@ -12,20 +11,27 @@ export async function getServerSideProps({ params, query }) {
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
 
-    // Fetch ledger items filtrando per customerId e status "open"
+    // ===== DEBUG: fetch senza formula per vedere i valori di Customer =====
     const ledgerItemsRecords = await base('Ledger Items').select({
-      filterByFormula: `AND(
-        FIND('${customerId}', ARRAYJOIN({Customer})) > 0,
-        FIND('open', ARRAYJOIN({Status})) > 0
-      )`
+      maxRecords: 20 // limitiamo per il debug
     }).firstPage();
 
-    const ledgerItems = ledgerItemsRecords.map(record => ({
+    ledgerItemsRecords.forEach(record => {
+      console.log('Ledger item ID:', record.id, 'Customer field:', record.fields.Customer);
+    });
+
+    // ===== FETCH filtrando per linked record singolo =====
+    // Se Customer è un linked record singolo, questa formula funziona
+    const filteredLedgerItemsRecords = await base('Ledger Items').select({
+      filterByFormula: `{Customer} = '${customerId}'`
+    }).firstPage();
+
+    const ledgerItems = filteredLedgerItemsRecords.map(record => ({
       id: record.id,
       ...record.fields
     }));
 
-    console.log('Ledger items trovati:', ledgerItems);
+    console.log('Ledger items filtrati trovati:', ledgerItems);
 
     return { props: { ledgerItems } };
   } catch (error) {

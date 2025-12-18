@@ -1,4 +1,5 @@
 import Airtable from 'airtable';
+import { useState, useEffect } from 'react';
 
 // ===== SERVER SIDE =====
 export async function getServerSideProps({ params, query }) {
@@ -36,6 +37,23 @@ export async function getServerSideProps({ params, query }) {
 
 // ===== FRONTEND =====
 export default function Paghero({ ledgerItems }) {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simula caricamento per miglior UX
+    const timer = setTimeout(() => setLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', textAlign: 'center' }}>
+        <h1>Pagherò digitale</h1>
+        <p>Caricamento pagamenti...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1>Pagherò digitale</h1>
@@ -53,7 +71,7 @@ export default function Paghero({ ledgerItems }) {
               borderRadius: '6px'
             }}
           >
-            <p><strong>Merchant:</strong> {item.Merchant || 'N/A'}</p>
+            <p><strong>Merchant:</strong> {item['Merchant Name'] || 'N/A'}</p>
             <p><strong>Descrizione:</strong> {item.Description || 'N/A'}</p>
             <p><strong>Importo:</strong> {item.Amount || '0'} €</p>
 

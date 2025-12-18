@@ -10,14 +10,12 @@ export async function getServerSideProps({ params, query }) {
       return { props: { ledgerItems: [] } };
     }
 
-    const base = new Airtable({
-      apiKey: process.env.AIRTABLE_KEY
-    }).base(process.env.AIRTABLE_BASE);
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
 
     // Fetch ledger items filtrando per customerId e status "open"
     const ledgerItemsRecords = await base('Ledger Items').select({
       filterByFormula: `AND(
-        {Customer} = '${customerId}',
+        FIND('${customerId}', ARRAYJOIN({Customer})) > 0,
         FIND('open', ARRAYJOIN({Status})) > 0
       )`
     }).firstPage();

@@ -11,13 +11,13 @@ export async function getServerSideProps({ params, query }) {
 
     const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
 
-    // ===== FETCH tutti i ledger items con Status = "open" =====
+    // Fetch tutti i ledger items con Status = "open"
     const allLedgerItems = await base('Ledger Items').select({
       filterByFormula: `{Status} = "open"`,
-      maxRecords: 100 // puoi aumentare se servono più record
+      maxRecords: 100
     }).firstPage();
 
-    // ===== FILTRO LATO SERVER per customerId =====
+    // Filtra lato server per customerId
     const ledgerItems = allLedgerItems
       .filter(item => Array.isArray(item.fields.Customer) && item.fields.Customer.includes(customerId))
       .map(item => ({
@@ -53,7 +53,7 @@ export default function Paghero({ ledgerItems }) {
               borderRadius: '6px'
             }}
           >
-            <p><strong>Merchant:</strong> {item.Merchant Name || 'N/A'}</p>
+            <p><strong>Merchant:</strong> {item.Merchant || 'N/A'}</p>
             <p><strong>Descrizione:</strong> {item.Description || 'N/A'}</p>
             <p><strong>Importo:</strong> {item.Amount || '0'} €</p>
 

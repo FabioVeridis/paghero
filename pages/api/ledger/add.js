@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   await base('Ledger Items').create({
     fields: {
-      'Customer ID': [customerId],
+      'Customer': [customerId],
       'Merchant Name': merchant,
       'Amount': amount,
       'Description': description,

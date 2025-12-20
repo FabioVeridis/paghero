@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm install --legacy-peer-deps && next build",
+    "build": "next build",
     "start": "next start"
   },
   "dependencies": {
@@ -13,14 +13,10 @@
     "react-dom": "18.2.0",
     "stripe": "^20.0.0",
     "airtable": "^0.12.2",
-    "@stripe/stripe-js": "^4.17.0",
+    "@stripe/stripe-js": "^4.0.0",
     "@stripe/react-stripe-js": "^2.9.0"
   },
   "engines": {
     "node": "20.x"
   }
 }
-
-
-
-

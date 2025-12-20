@@ -1,12 +1,12 @@
 // /pages/paghero/[customerId].js
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import Airtable from 'airtable';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PK);
 
-// Componente per il form di pagamento
+// Componente checkout con PaymentElement
 function CheckoutForm({ clientSecret, onClose }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -74,6 +74,21 @@ export default function Paghero({ ledgerItems }) {
     setSelectedItemId(null);
   };
 
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', textAlign: 'center' }}>
+        <h1>Pagherò digitale</h1>
+        <p>Caricamento pagamenti...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1>Pagherò digitale</h1>
@@ -105,28 +120,32 @@ export default function Paghero({ ledgerItems }) {
   );
 }
 
-// Server-side props per recuperare ledger items dal Customer
+// Server-side props: fetch ledger items e filtro lato server per Customer
 export async function getServerSideProps({ params, query }) {
-  const customerId = params.customerId || query.nxtPcustomerId;
-
-  if (!customerId) return { props: { ledgerItems: [] } };
-
   try {
+    const customerId = params.customerId || query.nxtPcustomerId;
+    if (!customerId) return { props: { ledgerItems: [] } };
+
     const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
 
-    const records = await base('Ledger Items').select({
-      filterByFormula: `AND(
-        FIND('${customerId}', ARRAYJOIN({Customer})) > 0,
-        FIND('open', ARRAYJOIN({Status})) > 0
-      )`
+    // Prendi tutti i ledger items aperti
+    const allLedgerItems = await base('Ledger Items').select({
+      filterByFormula: `{Status} = "open"`,
+      maxRecords: 100
     }).firstPage();
 
-    const ledgerItems = records.map(r => ({ id: r.id, ...r.fields }));
+    // Filtra lato server per linked Customer
+    const ledgerItems = allLedgerItems
+      .filter(item => Array.isArray(item.fields.Customer) && item.fields.Customer.includes(customerId))
+      .map(item => ({ id: item.id, ...item.fields }));
+
+    console.log('Ledger items filtrati trovati:', ledgerItems);
 
     return { props: { ledgerItems } };
-  } catch (err) {
-    console.error('Errore fetch Airtable:', err);
+  } catch (error) {
+    console.error('Errore fetch Airtable:', error);
     return { props: { ledgerItems: [] } };
   }
 }
+
 

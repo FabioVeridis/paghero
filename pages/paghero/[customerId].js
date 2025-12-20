@@ -27,16 +27,23 @@ function CheckoutForm({ clientSecret, onClose }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: '20px', border: '1px solid #ccc', padding: '10px', borderRadius: '6px' }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ marginTop: '20px', border: '1px solid #ccc', padding: '10px', borderRadius: '6px' }}
+    >
       <PaymentElement />
-      <button type="submit" disabled={!stripe || loading} style={{ marginTop: '10px', padding: '8px 12px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '5px' }}>
+      <button
+        type="submit"
+        disabled={!stripe || loading}
+        style={{ marginTop: '10px', padding: '8px 12px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '5px' }}
+      >
         {loading ? 'Processing...' : 'Paga ora'}
       </button>
     </form>
   );
 }
 
-export default function Paghero({ ledgerItems }) {
+export default function Paghero({ ledgerItems = [] }) { // <- default a array vuoto
   const [clientSecret, setClientSecret] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
 
@@ -69,7 +76,7 @@ export default function Paghero({ ledgerItems }) {
     <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1>Pagherò digitale</h1>
 
-      {ledgerItems.length === 0 ? (
+      {!ledgerItems || ledgerItems.length === 0 ? ( // controllo sicuro
         <p>Nessun pagamento aperto</p>
       ) : (
         ledgerItems.map(item => (

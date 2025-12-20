@@ -28,16 +28,20 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Importo non valido' });
     }
 
-    if (!item.Customer) {
+    // Verifica Customer
+    if (!item.Customer || !Array.isArray(item.Customer) || item.Customer.length === 0) {
       return res.status(400).json({ error: 'Ledger item senza Customer associato' });
     }
 
-    // Costruisci URL dinamici di ritorno
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL; // es. https://tuo-progetto.vercel.app
-    const successUrl = `${baseUrl}/paghero/${item.Customer}?success=1`;
-    const cancelUrl = `${baseUrl}/paghero/${item.Customer}?canceled=1`;
+    // Prendi il primo customerId dell'array
+    const customerId = item.Customer[0];
 
-    // Crea Checkout Session Stripe
+    // Costruisci URL dinamici di ritorno
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL; // es. https://paghero.vercel.app
+    const successUrl = `${baseUrl}/paghero/${customerId}?success=1`;
+    const cancelUrl  = `${baseUrl}/paghero/${customerId}?canceled=1`;
+
+    // Crea Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -71,5 +75,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Errore durante la creazione del pagamento' });
   }
 }
-
 

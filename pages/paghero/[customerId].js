@@ -1,14 +1,15 @@
-import Airtable from 'airtable';
-import { useRouter } from 'next/router';
-import { useState } from 'react';
+// /pages/paghero/[customerId].js
+import { useState, useEffect } from 'react';
 
 export default function Paghero({ ledgerItems }) {
-  const router = useRouter();
-  const [apiError, setApiError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handlePayNow = async (itemId) => {
-    setApiError(null);
-
     try {
       const res = await fetch('/api/ledger/pay-item', {
         method: 'POST',
@@ -18,60 +19,42 @@ export default function Paghero({ ledgerItems }) {
 
       const data = await res.json();
 
-      if (res.ok && data.url) {
-        window.location.href = data.url; // 🔥 redirect Stripe
+      if (data.url) {
+        // reindirizza direttamente alla Checkout Session Stripe
+        window.location.href = data.url;
       } else {
-        setApiError(data.error || 'Errore nel pagamento');
+        alert(data.error || 'Errore nel pagamento');
       }
     } catch (err) {
       console.error(err);
-      setApiError('Errore nella richiesta di pagamento');
+      alert('Errore nella richiesta di pagamento');
     }
   };
 
+  if (loading) {
+    return (
+      <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', textAlign: 'center' }}>
+        <h1>Pagherò digitale</h1>
+        <p>Caricamento pagamenti...</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', fontFamily: 'sans-serif' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1>Pagherò digitale</h1>
-
-      {router.query.success && (
-        <p style={{ color: 'green' }}>Pagamento completato con successo</p>
-      )}
-
-      {router.query.canceled && (
-        <p style={{ color: 'orange' }}>Pagamento annullato</p>
-      )}
-
-      {apiError && (
-        <p style={{ color: 'red' }}>{apiError}</p>
-      )}
 
       {!ledgerItems || ledgerItems.length === 0 ? (
         <p>Nessun pagamento aperto</p>
       ) : (
         ledgerItems.map(item => (
-          <div
-            key={item.id}
-            style={{
-              border: '1px solid #ccc',
-              padding: 10,
-              marginBottom: 10,
-              borderRadius: 6
-            }}
-          >
+          <div key={item.id} style={{ border: '1px solid #ccc', padding: '10px', marginBottom: '10px', borderRadius: '6px' }}>
             <p><strong>Merchant:</strong> {item['Merchant Name'] || 'N/A'}</p>
             <p><strong>Descrizione:</strong> {item.Description || 'N/A'}</p>
-            <p><strong>Importo:</strong> {item.Amount} €</p>
-
+            <p><strong>Importo:</strong> {item.Amount || '0'} €</p>
             <button
               onClick={() => handlePayNow(item.id)}
-              style={{
-                padding: '8px 12px',
-                background: '#0070f3',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 5,
-                cursor: 'pointer'
-              }}
+              style={{ padding: '8px 12px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
             >
               Paga ora
             </button>
@@ -80,5 +63,32 @@ export default function Paghero({ ledgerItems }) {
       )}
     </div>
   );
+}
+
+// Server-side props: fetch ledger items filtrati per customerId
+export async function getServerSideProps({ params }) {
+  try {
+    const customerId = params.customerId;
+    if (!customerId) return { props: { ledgerItems: [] } };
+
+    const Airtable = (await import('airtable')).default;
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
+
+    // Prendi tutti i ledger items aperti
+    const allLedgerItems = await base('Ledger Items').select({
+      filterByFormula: `{Status} = "open"`,
+      maxRecords: 100
+    }).firstPage();
+
+    // Filtra lato server per linked Customer (array)
+    const ledgerItems = allLedgerItems
+      .filter(item => Array.isArray(item.fields.Customer) && item.fields.Customer.includes(customerId))
+      .map(item => ({ id: item.id, ...item.fields }));
+
+    return { props: { ledgerItems } };
+  } catch (error) {
+    console.error('Errore fetch Airtable:', error);
+    return { props: { ledgerItems: [] } };
+  }
 }
 

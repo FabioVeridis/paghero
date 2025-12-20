@@ -28,6 +28,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Importo non valido' });
     }
 
+    if (!item.Customer) {
+      return res.status(400).json({ error: 'Ledger item senza Customer associato' });
+    }
+
+    // Costruisci URL dinamici di ritorno
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL; // es. https://tuo-progetto.vercel.app
+    const successUrl = `${baseUrl}/paghero/${item.Customer}?success=1`;
+    const cancelUrl = `${baseUrl}/paghero/${item.Customer}?canceled=1`;
+
     // Crea Checkout Session Stripe
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -44,11 +53,9 @@ export default async function handler(req, res) {
           quantity: 1
         }
       ],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/paghero/${item.Customer}?success=1`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/paghero/${item.Customer}?canceled=1`,
-      metadata: {
-        ledgerItemId: itemId
-      }
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: { ledgerItemId: itemId }
     });
 
     // Aggiorna Airtable → pending
@@ -64,4 +71,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Errore durante la creazione del pagamento' });
   }
 }
+
 

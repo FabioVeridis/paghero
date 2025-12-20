@@ -48,24 +48,29 @@ function CheckoutForm({ clientSecret, onClose }) {
 export default function Paghero({ ledgerItems }) {
   const [clientSecret, setClientSecret] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
+  const [apiError, setApiError] = useState(null);
 
   const handlePayNow = async (itemId) => {
+    setApiError(null);
     try {
-      const res = await fetch('/api/pay', {
+      const res = await fetch('/api/ledger/pay-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId })
       });
+
       const data = await res.json();
-      if (data.clientSecret) {
+
+      if (res.ok && data.clientSecret) {
         setClientSecret(data.clientSecret);
         setSelectedItemId(itemId);
+        setApiError(null);
       } else {
-        alert(data.error || 'Errore nel pagamento');
+        setApiError(data.error || 'Errore nel pagamento');
       }
     } catch (err) {
-      console.error(err);
-      alert('Errore nella richiesta di pagamento');
+      console.error('Errore nella fetch:', err);
+      setApiError('Errore nella richiesta di pagamento');
     }
   };
 
@@ -92,6 +97,12 @@ export default function Paghero({ ledgerItems }) {
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1>Pagherò digitale</h1>
+
+      {apiError && (
+        <div style={{ color: 'red', marginBottom: '10px' }}>
+          {apiError}
+        </div>
+      )}
 
       {!ledgerItems || ledgerItems.length === 0 ? (
         <p>Nessun pagamento aperto</p>
@@ -147,5 +158,3 @@ export async function getServerSideProps({ params, query }) {
     return { props: { ledgerItems: [] } };
   }
 }
-
-

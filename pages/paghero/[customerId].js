@@ -1,10 +1,12 @@
+// /pages/paghero/[customerId].js
 import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import Airtable from 'airtable';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PK);
 
-// Componente checkout con PaymentElement
+// Componente per il form di pagamento
 function CheckoutForm({ clientSecret, onClose }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -22,7 +24,6 @@ function CheckoutForm({ clientSecret, onClose }) {
 
     if (error) alert(error.message);
     setLoading(false);
-    // Chiudi il form dopo il tentativo
     onClose();
   };
 
@@ -43,7 +44,8 @@ function CheckoutForm({ clientSecret, onClose }) {
   );
 }
 
-export default function Paghero({ ledgerItems = [] }) { // <- default a array vuoto
+// Frontend principale
+export default function Paghero({ ledgerItems }) {
   const [clientSecret, setClientSecret] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
 
@@ -76,7 +78,7 @@ export default function Paghero({ ledgerItems = [] }) { // <- default a array vu
     <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1>Pagherò digitale</h1>
 
-      {!ledgerItems || ledgerItems.length === 0 ? ( // controllo sicuro
+      {!ledgerItems || ledgerItems.length === 0 ? (
         <p>Nessun pagamento aperto</p>
       ) : (
         ledgerItems.map(item => (
@@ -94,7 +96,6 @@ export default function Paghero({ ledgerItems = [] }) { // <- default a array vu
         ))
       )}
 
-      {/* PaymentElement dinamico */}
       {clientSecret && selectedItemId && (
         <Elements stripe={stripePromise} options={{ clientSecret }}>
           <CheckoutForm clientSecret={clientSecret} onClose={handleCloseForm} />
@@ -102,5 +103,30 @@ export default function Paghero({ ledgerItems = [] }) { // <- default a array vu
       )}
     </div>
   );
+}
+
+// Server-side props per recuperare ledger items dal Customer
+export async function getServerSideProps({ params, query }) {
+  const customerId = params.customerId || query.nxtPcustomerId;
+
+  if (!customerId) return { props: { ledgerItems: [] } };
+
+  try {
+    const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
+
+    const records = await base('Ledger Items').select({
+      filterByFormula: `AND(
+        FIND('${customerId}', ARRAYJOIN({Customer})) > 0,
+        FIND('open', ARRAYJOIN({Status})) > 0
+      )`
+    }).firstPage();
+
+    const ledgerItems = records.map(r => ({ id: r.id, ...r.fields }));
+
+    return { props: { ledgerItems } };
+  } catch (err) {
+    console.error('Errore fetch Airtable:', err);
+    return { props: { ledgerItems: [] } };
+  }
 }
 

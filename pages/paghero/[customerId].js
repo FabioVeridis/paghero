@@ -1,52 +1,84 @@
-import Stripe from 'stripe';
 import Airtable from 'airtable';
+import { useRouter } from 'next/router';
+import { useState } from 'react';
 
-const stripe = new Stripe(process.env.STRIPE_KEY);
-const base = new Airtable({ apiKey: process.env.AIRTABLE_KEY }).base(process.env.AIRTABLE_BASE);
+export default function Paghero({ ledgerItems }) {
+  const router = useRouter();
+  const [apiError, setApiError] = useState(null);
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  const handlePayNow = async (itemId) => {
+    setApiError(null);
 
-  try {
-    const { itemId } = req.body;
-    if (!itemId) return res.status(400).json({ error: 'Missing itemId' });
+    try {
+      const res = await fetch('/api/ledger/pay-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId })
+      });
 
-    // Recupera ledger item da Airtable
-    const record = await base('Ledger Items').find(itemId);
-    const item = record.fields;
+      const data = await res.json();
 
-    if (item.Status !== 'open') return res.status(400).json({ error: 'Pagamento non disponibile' });
-    if (!item.Amount || item.Amount <= 0) return res.status(400).json({ error: 'Importo non valido' });
+      if (res.ok && data.url) {
+        window.location.href = data.url; // 🔥 redirect Stripe
+      } else {
+        setApiError(data.error || 'Errore nel pagamento');
+      }
+    } catch (err) {
+      console.error(err);
+      setApiError('Errore nella richiesta di pagamento');
+    }
+  };
 
-    // Crea la Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: { name: item.Description || 'Pagamento' },
-          unit_amount: Math.round(item.Amount * 100),
-        },
-        quantity: 1
-      }],
-      mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/paghero/${item.Customer}?success=1`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/paghero/${item.Customer}?canceled=1`,
-      metadata: { ledgerItemId: itemId }
-    });
+  return (
+    <div style={{ maxWidth: 600, margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <h1>Pagherò digitale</h1>
 
-    // Aggiorna ledger item → pending
-    await base('Ledger Items').update(itemId, {
-      Status: 'pending',
-      PaymentIntentId: session.id
-    });
+      {router.query.success && (
+        <p style={{ color: 'green' }}>Pagamento completato con successo</p>
+      )}
 
-    return res.status(200).json({ url: session.url });
-  } catch (error) {
-    console.error('Errore /api/ledger/pay-item:', error);
-    return res.status(500).json({ error: 'Errore durante la creazione della Checkout Session' });
-  }
+      {router.query.canceled && (
+        <p style={{ color: 'orange' }}>Pagamento annullato</p>
+      )}
+
+      {apiError && (
+        <p style={{ color: 'red' }}>{apiError}</p>
+      )}
+
+      {!ledgerItems || ledgerItems.length === 0 ? (
+        <p>Nessun pagamento aperto</p>
+      ) : (
+        ledgerItems.map(item => (
+          <div
+            key={item.id}
+            style={{
+              border: '1px solid #ccc',
+              padding: 10,
+              marginBottom: 10,
+              borderRadius: 6
+            }}
+          >
+            <p><strong>Merchant:</strong> {item['Merchant Name'] || 'N/A'}</p>
+            <p><strong>Descrizione:</strong> {item.Description || 'N/A'}</p>
+            <p><strong>Importo:</strong> {item.Amount} €</p>
+
+            <button
+              onClick={() => handlePayNow(item.id)}
+              style={{
+                padding: '8px 12px',
+                background: '#0070f3',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 5,
+                cursor: 'pointer'
+              }}
+            >
+              Paga ora
+            </button>
+          </div>
+        ))
+      )}
+    </div>
+  );
 }
 
